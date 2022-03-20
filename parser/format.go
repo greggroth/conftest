@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -9,7 +8,7 @@ import (
 // Format takes in multiple configurations input and formats the configuration
 // to be more human readable. The key of each configuration should be its filepath.
 func Format(configurations map[string]interface{}) (string, error) {
-	output := "\n"
+	var output string
 	for file, config := range configurations {
 		output += file + "\n"
 
@@ -22,6 +21,25 @@ func Format(configurations map[string]interface{}) (string, error) {
 	}
 
 	return output, nil
+}
+
+// FormatJSON takes in multiple configurations and formats them as a JSON list
+// of objects with a filePath and configuration key for each.
+func FormatJSON(configurations map[string]interface{}) (string, error) {
+	type configWithFilePath struct {
+		FilePath      string
+		Configuration interface{}
+	}
+	var configs []configWithFilePath
+	for fp, cfg := range configurations {
+		configs = append(configs, configWithFilePath{FilePath: fp, Configuration: cfg})
+	}
+	marshalled, err := json.MarshalIndent(configs, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("marshal configs: %w", err)
+	}
+
+	return string(marshalled), nil
 }
 
 // FormatCombined takes in multiple configurations, combines them, and formats the
@@ -39,19 +57,10 @@ func FormatCombined(configurations map[string]interface{}) (string, error) {
 }
 
 func format(configs interface{}) (string, error) {
-	out, err := json.Marshal(configs)
+	out, err := json.MarshalIndent(configs, "", "\t")
 	if err != nil {
 		return "", fmt.Errorf("marshal output to json: %w", err)
 	}
 
-	var prettyJSON bytes.Buffer
-	if err = json.Indent(&prettyJSON, out, "", "\t"); err != nil {
-		return "", fmt.Errorf("indentation: %w", err)
-	}
-
-	if _, err := prettyJSON.WriteString("\n"); err != nil {
-		return "", fmt.Errorf("adding line break: %w", err)
-	}
-
-	return prettyJSON.String(), nil
+	return string(out) + "\n", nil
 }
